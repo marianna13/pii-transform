@@ -24,6 +24,8 @@ from pii_data.helper.exception import FileException
 
 from .. import defs
 
+from copy import copy
+
 # How many entities to keep in cache to be able to reassign the same value
 DEFAULT_CACHE_SIZE = 200
 
@@ -54,6 +56,7 @@ class PlaceholderValue:
         # Prepare the cache
         if cache_size is None:
             cache_size = DEFAULT_CACHE_SIZE
+        self.cache_size = cache_size
         self._cache = lru_cache(maxsize=cache_size)(self._rotate_value)
         self._index = defaultdict(int)
 
@@ -96,6 +99,15 @@ class PlaceholderValue:
             return choices[self._index[key]]
         finally:
             self._index[key] = (self._index[key] + 1) % len(choices)
+
+    def __getstate__(self):
+        result = copy(self.__dict__)
+        result["_cache"] = None
+        return result
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self._cache = lru_cache(maxsize=self.cache_size)(self._rotate_value)
 
 
     def __call__(self, pii: PiiEntity) -> str:
